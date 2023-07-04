@@ -1,0 +1,86 @@
+#! /usr/bin/env python
+
+import rospy
+import rostopic
+from std_msgs.msg import *
+from rosneuro_msgs.msg import * 
+
+seqfrom  = 0
+timefrom = rospy.Time()
+
+def on_received_msg_from(msg):
+    global seqfrom
+    global timefrom
+
+    timefrom = msg.header.stamp
+    seqfrom  = msg.neuroheader.seq
+
+def on_received_msg_to(msg):
+    global seqfrom
+    global timefrom
+    
+    timeto = msg.header.stamp
+    seqto  = msg.neuroheader.seq
+
+    if(seqto == seqfrom):
+        difftime = 1000*(timeto - timefrom).to_sec()
+        #print("Latency: " + str(difftime) + " ms")
+        if difftime > maxlatency:
+            rospy.logwarn("Delay: %f ms", difftime)
+    else:
+        rospy.logerr("%d %d", seqto, seqfrom)
+
+def wait_for_topic_type(topic):
+
+    topictyp = None
+    topicref = None
+
+    while(topictyp == None and topicref == None and not rospy.is_shutdown()):
+        
+        try:
+            topictyp, topicref, _ = rostopic.get_topic_class(topic)
+            rospy.sleep(2.0)
+            rospy.logwarn_throttle(5.0, "No message published in '%s' yet", topic)
+            
+
+        except KeyboardInterrupt:
+            break
+
+    rospy.loginfo("Topic '%s' is running with message of type '%s'", topicref, topictyp);
+
+    return topictyp, topicref
+
+
+
+if __name__ == '__main__':
+    rospy.init_node('latency')
+
+    try:
+        fromtopic = rospy.get_param("~from")
+    except KeyError as ke:
+        print("Parameter is mandatory: ", ke)
+        sys.exit()
+    
+    try:
+        totopic = rospy.get_param("~to")
+    except KeyError as ke:
+        print("Parameter is mandatory: ", ke)
+        sys.exit()
+    
+    try:
+        maxlatency = rospy.get_param("~maxlatency")
+    except KeyError as ke:
+        print("Parameter is mandatory: ", ke)
+        sys.exit()
+
+    fromtype, fromref = wait_for_topic_type(fromtopic)
+    totype, toref = wait_for_topic_type(totopic) 
+   
+
+    if(fromtype != None and totype != None):
+        #rospy.Subscriber(topicA, NeuroFrame, on_received_msg_A)
+        #rospy.Subscriber(topicB, NeuroOutput, on_received_msg_B)
+        rospy.Subscriber(fromref, fromtype, on_received_msg_from)
+        rospy.Subscriber(toref, totype, on_received_msg_to)
+
+        rospy.spin()

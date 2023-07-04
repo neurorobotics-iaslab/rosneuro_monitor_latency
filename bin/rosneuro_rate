@@ -1,0 +1,57 @@
+#! /usr/bin/env python
+
+import rospy
+import rostopic 
+from std_msgs.msg import *
+
+msgseq = -1
+msgstamp = rospy.Time()
+reftopic = ""
+reqperiod = 0
+reqtolerance = 0
+
+def on_received_msg(msg):
+    global reftopic
+    global msgseq
+    global msgstamp
+    global reqtimerange
+
+    if(msgseq == -1):
+        msgstamp = msg.header.stamp
+        msgseq = msg.header.seq
+        return
+
+    if(msg.header.seq - msgseq) == 1:
+
+        difftime = (msg.header.stamp - msgstamp).to_sec()
+
+        if(difftime > reqperiod + reqtolerance or difftime < reqperiod - reqtolerance):
+            rospy.logwarn("Warning: messages from '%s' out of time tolerance: %5.2f/%5.2f ms", 
+                           reftopic, difftime*1000, reqperiod*1000)
+    elif(msg.header.seq - msgseq) > 1:
+        rospy.logwarn("Topic '%s' skipped one message", reftopic)
+   
+    msgstamp = msg.header.stamp
+    msgseq = msg.header.seq
+
+
+if __name__ == '__main__':
+    rospy.init_node('monitoring_rate')
+
+    try:
+        reqrate = rospy.get_param("~rate")
+    except KeyError as ke:
+        print("Parameter is mandatory: ", ke)
+        sys.exit()
+
+    tolerance = rospy.get_param("~tolerance", 2)
+
+    reqperiod = 1/reqrate
+    reqtolerance = reqperiod * tolerance / 100
+
+    typetopic, reftopic, _ = rostopic.get_topic_class('/neurodata')
+
+    rospy.logwarn("Topic '%s' time tolerance: +/-%5.2f ms", reftopic, 1000*reqtolerance)
+    rospy.Subscriber(reftopic, typetopic, on_received_msg)
+
+    rospy.spin()

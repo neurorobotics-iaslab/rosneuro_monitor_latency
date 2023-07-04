@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- acquisition arguments -->
+		<arg name="plugin" default='rosneuro::EGDDevice'/>
+		<arg name="devarg" default='$(env HOME)/Desktop/test16channels.gdf'/>
+		<arg name="framerate"  default='16'/>
+		<arg name="samplerate" default='512'/>
+	
+	<!-- montioring parameter -->
+		<arg name="tolerance" default='2' />
+
+	<!-- Aquisition of the BMI signals -->
+	<node name="acquisition" pkg="rosneuro_acquisition" type="acquisition" output="screen" >
+		<param name="~plugin" 	  value="$(arg plugin)"/>
+		<param name="~devarg" 	  value="$(arg devarg)"/>
+		<param name="~samplerate" value="$(arg samplerate)"/>
+		<param name="~framerate"  value="$(arg framerate)"/>
+	</node>
+
+	<node name="rosneuro_rate" pkg="rosneuro_monitor_latency" type="rosneuro_rate" output="screen" >
+		<param name="~rate" 	 value="$(arg framerate)" />
+		<param name="~tolerance" value="$(arg tolerance)" />
+	</node>
+  
+</launch>
